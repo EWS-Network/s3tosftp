@@ -1,0 +1,2 @@
+SFTP_TARGET='{"dstHost": "localhost", "dstPort": 2200, "dstUsername": "foo", "dstPassword": "pass", "dstPath": "upload"}'
+QUEUE_NAME='none-sftpqueue'

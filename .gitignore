@@ -1,0 +1,11 @@
+*~
+.venv*
+*venv*
+*.idea
+*.DS_*
+/codebuild_build.sh
+/docker-compose.env
+*pycache*
+.pytest_cache
+secret.json
+*.pyc

@@ -1,0 +1,56 @@
+---
+# Docker compose
+version: '3.4'
+services:
+  ecs-local-endpoints:
+    image: amazon/amazon-ecs-local-container-endpoints
+    volumes:
+      - /var/run:/var/run
+      - $HOME/.aws/:/home/.aws/
+    environment:
+      ECS_LOCAL_METADATA_PORT: "51679"
+      HOME: "/home"
+      AWS_DEFAULT_REGION: "eu-west-1"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN}
+      AWS_SECURITY_TOKEN: ${AWS_SECURITY_TOKEN}
+    ports:
+      - 51679:51679
+  sftpserver:
+    volumes:
+      - /tmp/sftp:/tmp
+    image: atmoz/sftp
+    ports:
+      - 2200:22/tcp
+    command: foo:pass:::upload
+  sftptransfer:
+    image: s3sftp:latest
+    environment:
+      QUEUE_NAME: "none-sftpqueue"
+      SFTP_TARGET: '{"dstHost": "sftpserver", "dstPort": 22, "dstUsername": "foo", "dstPassword": "pass", "dstPath": "upload"}'
+      AWS_DEFAULT_REGION: "eu-west-1"
+      AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: "/creds"
+      LOGLEVEL: DEBUG
+    depends_on:
+      - sftpserver
+      - ecs-local-endpoints
+    links:
+      - sftpserver
+
+x-sqs:
+  targetonequeue:
+    Properties: {}
+    Settings:
+      EnvNames:
+        QUEUE_NAME: targetone
+    Services:
+      - name: targetone
+        access: RWMessages
+
+x-tags:
+  costcentre: PD0000
+  owner: supply-chain
+  project: any
+  environment: nonprod
+  live: false

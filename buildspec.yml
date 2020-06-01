@@ -1,0 +1,33 @@
+version: 0.2
+env:
+  git-credential-helper: yes
+  mocksftp: atmoz/sftp
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+    commands:
+      - pip --version || curl -s https://bootstrap.pypa.io/get-pip.py | python
+      - jq --version || yum install jq -y
+      - export ACCOUNT_ID=`aws sts get-caller-identity | jq -r .Account`
+      - echo ACCOUNT ID $ACCOUNT_ID - Region $AWS_REGION
+      - DKR_ACCT_URL="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+      - echo $DKR_ACCT_URL
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $DKR_ACCT_URL
+      - if [ -z ${CODEBUILD_BUILD_NUMBER+x} ]; then export TAG=$(date +%s); else export TAG=$CODEBUILD_BUILD_NUMBER; fi
+      - echo Tag ${TAG} - Account ID $ACCOUNT_ID
+      - TAG_URL="${DKR_ACCT_URL}/${ECR_REPO_NAME}:${TAG}"
+  pre_build:
+    commands:
+      - KEY=/tmp/key
+      - if [ -f ${KEY} ]; then rm -rf ${KEY}; ssh-keygen -t rsa -b 4096 -f ${KEY} -q -N ""; fi
+      - USERNAME=devtest
+      - PASSWORD=$(date +%s)
+      - PATH=upload
+      - docker run ${USERNAME}:${PASSWORD}:::${PATH}
+  build:
+    commands:
+      - docker build -t ${TAG_URL} .
+      - docker push ${TAG_URL} | tee push.log && echo ${TAG_URL} > image_url.txt
+      - IMAGE_SHA=`grep digest push.log | awk '{print $3}'`

@@ -1,0 +1,78 @@
+[
+  {
+    "ParameterKey": "CostcentreTag",
+    "ParameterValue": "EWS"
+  },
+  {
+    "ParameterKey": "ProjectTag",
+    "ParameterValue": "S3tosftp"
+  },
+  {
+    "ParameterKey": "SftpHost",
+    "ParameterValue": "sftpserver"
+  },
+  {
+    "ParameterKey": "SftpPath",
+    "ParameterValue": "/"
+  },
+  {
+    "ParameterKey": "AppSubnets",
+    "ParameterValue": "${APP_SUBNETS}"
+  },
+  {
+    "ParameterKey": "TargetName",
+    "ParameterValue": "sftpendpoint"
+  },
+  {
+    "ParameterKey": "SftpPrivateKeySecretName",
+    "ParameterValue": "None"
+  },
+  {
+    "ParameterKey": "SftpUsername",
+    "ParameterValue": "sftpuser"
+  },
+  {
+    "ParameterKey": "LiveTag",
+    "ParameterValue": "false"
+  },
+  {
+    "ParameterKey": "MicroserviceImage",
+    "ParameterValue": "${IMAGE}"
+  },
+  {
+    "ParameterKey": "UseCfnExports",
+    "ParameterValue": "True"
+  },
+  {
+    "ParameterKey": "MicroServiceName",
+    "ParameterValue": "s3tosftpclient"
+  },
+  {
+    "ParameterKey": "SourceS3BucketName",
+    "ParameterValue": "ews-dev"
+  },
+  {
+    "ParameterKey": "EcsClusterName",
+    "ParameterValue": "default"
+  },
+  {
+    "ParameterKey": "EnvironmentTag",
+    "ParameterValue": "dev"
+  },
+  {
+    "ParameterKey": "SftpPort",
+    "ParameterValue": 22
+  },
+  {
+    "ParameterKey": "VpcId",
+    "ParameterValue": "${VPC_ID}"
+  },
+  {
+    "ParameterKey": "SftpPassword",
+    "ParameterValue": "somedummypassword"
+  },
+  {
+    "ParameterKey": "OwnerTag",
+    "ParameterValue": "self"
+  }
+]
