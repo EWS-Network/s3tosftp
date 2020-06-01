@@ -73,6 +73,7 @@ def listen_for_jobs(queue_name, sftp_info, session=None, client=None):
             LOG.debug(file_info)
             if not file_info:
                 continue
+            LOG.info(f"Processing file {file_info['object']}")
             try:
                 file = FileHandler(
                     sftp_info,

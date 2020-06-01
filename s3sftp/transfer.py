@@ -63,6 +63,7 @@ class FileHandler(object):
             LOG.debug(self.local_file_path)
             LOG.debug(self.remote_file_path)
             sftp_fd.put(self.local_file_path, self.remote_file_path)
+            LOG.info(f"File {self.s3_path} uploaded to {self.sftp_info[SFTP_HOST]}")
         connection.close()
 
     def pull(self):
@@ -73,6 +74,7 @@ class FileHandler(object):
             makedirs(path.abspath(self.local_dir_path))
         with open(self.local_file_path, "wb") as file_fd:
             self.client.download_fileobj(self.bucket_name, self.s3_path, file_fd)
+        LOG.info(f"File {self.s3_path} successfully downloaded from {self.bucket_name}")
 
     def clean(self):
         """
@@ -80,6 +82,7 @@ class FileHandler(object):
         """
         if path.exists(self.local_file_path):
             remove(self.local_file_path)
+            LOG.info(f"File {self.local_file_path} successfully deleted")
 
     def __init__(
         self, sftp_info, bucket_name, file_path, session=None, client=None,

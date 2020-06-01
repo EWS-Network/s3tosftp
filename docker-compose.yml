@@ -31,7 +31,7 @@ services:
       SFTP_TARGET: '{"dstHost": "sftpserver", "dstPort": 22, "dstUsername": "foo", "dstPassword": "pass", "dstPath": "upload"}'
       AWS_DEFAULT_REGION: "eu-west-1"
       AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: "/creds"
-      LOGLEVEL: DEBUG
+      LOGLEVEL: INFO
     depends_on:
       - sftpserver
       - ecs-local-endpoints
