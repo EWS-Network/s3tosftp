@@ -40,11 +40,14 @@ Conditions:
     - <self>
   UseVpcMapId: !Not
     - !Condition 'NotUseVpcMapId'
-  NotUseSftpKeySecret: !Equals
+  NotUseSftpKeySecretCondition: !Equals
     - !Ref "SftpPrivateKeySecretName"
     - none
-  UseSftpKeySecret: !Not
-    - !Condition NotUseSftpKeySecret
+  UseSftpKeySecretCondition: !Not
+    - !Condition NotUseSftpKeySecretCondition
+  NotUseKmsKeyId: !Equals
+    - !Ref S3KmsKeyId
+    - "none"
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -57,8 +60,10 @@ Metadata:
           - SftpPort
           - SftpUsername
           - SftpPassword
+          - SftpPath
           - SftpPrivateKeySecretName
           - SourceS3BucketName
+          - S3KmsKeyId
       - Label:
           default: Network Settings
         Parameters:
@@ -73,21 +78,11 @@ Metadata:
           - MicroserviceImage
           - MicroservicesCount
           - MicroserviceHostname
-      - Label:
-          default: Mandatory tags.
-        Parameters:
-          - CostcentreTag
-          - ProjectTag
-      - Label:
-          - default: Environment tags
-        Parameters:
-          - EnvironmentTag
-          - OwnerTag
 
 Parameters:
   TargetName:
     Type: String
-    AllowedPattern: '[a-z0-9-]'
+    AllowedPattern: '[a-z0-9-]+'
   SftpHost:
     Type: String
   SftpPort:
@@ -96,6 +91,7 @@ Parameters:
     MaxValue: 65535
   SftpPath:
     Type: String
+    Default: ""
   SftpUsername:
     Type: String
   SftpPassword:
@@ -183,78 +179,69 @@ Parameters:
     Default: 'False'
     Type: String
 
-  CostcentreTag:
-    AllowedPattern: '[\x20-\x7E]+'
-    ConstraintDescription: Must be ASCII
-    MaxLength: 128
-    MinLength: 2
+  S3KmsKeyId:
     Type: String
-  EnvironmentTag:
-    AllowedPattern: '[\x20-\x7E]+'
-    ConstraintDescription: Must be ASCII
-    Default: nonprod
-    MaxLength: 128
-    MinLength: 2
-    Type: String
-  LiveTag:
-    AllowedPattern: '[\x20-\x7E]+'
-    ConstraintDescription: Must be ASCII
-    Default: false
-    MaxLength: 128
-    MinLength: 2
-    Type: String
-  OwnerTag:
-    AllowedPattern: '[\x20-\x7E]+'
-    ConstraintDescription: Must be ASCII
-    Default: self
-    MaxLength: 128
-    MinLength: 2
-    Type: String
-  ProjectTag:
-    AllowedPattern: '[\x20-\x7E]+'
-    ConstraintDescription: Must be ASCII
-    Default: any
-    MaxLength: 128
-    MinLength: 2
-    Type: String
+    Default: None
 
 Resources:
-  ClusterServicesLogGroup:
+  ServiceLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       RetentionInDays: 60
-      LogGroupName: !Sub 'sftp/${TargetName}'
+      LogGroupName: !Sub 'svc/sftp/${TargetName}'
 
   TargetQueue:
     Type: AWS::SQS::Queue
+    DependsOn:
+      - TargetDLQ
     Properties:
       QueueName: !Sub '${TargetName}'
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt TargetDLQ.Arn
+        maxReceiveCount: 10
       Tags:
         - Key: Name
-          Value: targetonequeue
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
-        - Key: environment
-          Value: !Ref 'EnvironmentTag'
-        - Key: live
-          Value: !Ref 'LiveTag'
-        - Key: owner
-          Value: !Ref 'OwnerTag'
-        - Key: project
-          Value: !Ref 'ProjectTag'
+          Value: !Sub "${TargetName}"
+
+  QueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument: {
+        "Version": "2012-10-17",
+        "Id": !Sub "${TargetQueue.QueueName}Policy",
+        "Statement": [
+            {
+              "Sid": "FromS3Bucket",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "*"
+            },
+            "Action": "SQS:SendMessage",
+            "Resource": !GetAtt TargetQueue.Arn,
+            "Condition": {
+              "ArnLike": {
+                "aws:SourceArn": !Sub "arn:aws:s3:*:*:${SourceS3BucketName}"
+              }
+            }
+          }
+        ]
+      }
+      Queues:
+        - !Ref TargetQueue
+
+  TargetDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${TargetName}-dlq'
+      Tags:
+        - Key: Name
+          Value: !Sub '${TargetName}-sql'
+
+
   SftpSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      SecretString: !Sub |
-        {
-        "dstPort":"${SftpPort}",
-        "dstHost": "${SftpHost}",
-        "dstUsername": ${SftpUsername},
-        "dstPassword": ${SftpPassword}
-        }
-      Tags:
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
+      SecretString: !Sub '{"dstPort": ${SftpPort}, "dstHost": "${SftpHost}", "dstUsername": "${SftpUsername}", "dstPassword": "${SftpPassword}", "dstPath": "${SftpPath}"}'
 
   EcsExecutionRole:
     Type: AWS::IAM::Role
@@ -272,17 +259,6 @@ Resources:
                 - !Sub 'ecs-tasks.${AWS::URLSuffix}'
         Version: '2012-10-17'
       Description: !Sub 'Execution role for ${MicroServiceName} in ${EcsClusterName}'
-      Tags:
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
-        - Key: environment
-          Value: !Ref 'EnvironmentTag'
-        - Key: live
-          Value: !Ref 'LiveTag'
-        - Key: owner
-          Value: !Ref 'OwnerTag'
-        - Key: project
-          Value: !Ref 'ProjectTag'
   EcsExecutionRolePolicy:
     Type: AWS::IAM::Policy
     Properties:
@@ -314,7 +290,7 @@ Resources:
               - logs:PutLogEvents
             Effect: Allow
             Resource:
-              - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${EcsClusterName}:*'
+              - !GetAtt ServiceLogGroup.Arn
             Sid: AllowCloudWatchLoggingToSpecificLogGroup
           - Action:
               - ec2:AttachNetworkInterface
@@ -340,7 +316,7 @@ Resources:
             Resource:
               - !Ref SftpSecret
               - Fn::If:
-                  - UseSftpKeySecret
+                  - UseSftpKeySecretCondition
                   - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${SftpPrivateKeySecretName}"
                   - !Ref "AWS::NoValue"
 
@@ -371,7 +347,10 @@ Resources:
             - !Ref 'MicroservicesCount'
       EnableECSManagedTags: 'true'
       HealthCheckGracePeriodSeconds: !Ref 'AWS::NoValue'
-      LaunchType: !Ref 'EcsLaunchType'
+      LaunchType: !If
+        - UseFargateCondition
+        - !Ref "AWS::NoValue"
+        - EC2
       LoadBalancers: !Ref 'AWS::NoValue'
       NetworkConfiguration:
         AwsvpcConfiguration:
@@ -399,16 +378,6 @@ Resources:
           Value: !Ref 'MicroServiceName'
         - Key: StackName
           Value: !Ref 'AWS::StackName'
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
-        - Key: environment
-          Value: !Ref 'EnvironmentTag'
-        - Key: live
-          Value: !Ref 'LiveTag'
-        - Key: owner
-          Value: !Ref 'OwnerTag'
-        - Key: project
-          Value: !Ref 'ProjectTag'
       TaskDefinition: !Ref 'EcsTaskDefinition'
   EcsTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -425,29 +394,29 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref 'EcsClusterName'
+              awslogs-group: !Ref ServiceLogGroup
               awslogs-region: !Ref 'AWS::Region'
-              awslogs-stream-prefix: !Ref 'ClusterServicesLogGroup'
+              awslogs-stream-prefix: !Select [ 1, !Split [ ":", !Ref MicroserviceImage ]]
           MemoryReservation: !Select
-              - 1
-              - !Split
-                - '!'
-                - !Ref 'FargateCpuRamConfiguration'
+            - 1
+            - !Split
+              - '!'
+              - !Ref 'FargateCpuRamConfiguration'
           Name: !Ref 'MicroServiceName'
           PortMappings: !Ref 'AWS::NoValue'
       Cpu: !Select
-          - 0
-          - !Split
-            - '!'
-            - !Ref 'FargateCpuRamConfiguration'
+        - 0
+        - !Split
+          - '!'
+          - !Ref 'FargateCpuRamConfiguration'
 
       ExecutionRoleArn: !GetAtt 'EcsExecutionRole.Arn'
       Family: !Ref 'MicroServiceName'
       Memory: !Select
-          - 1
-          - !Split
-            - '!'
-            - !Ref 'FargateCpuRamConfiguration'
+        - 1
+        - !Split
+          - '!'
+          - !Ref 'FargateCpuRamConfiguration'
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - EC2
@@ -457,16 +426,6 @@ Resources:
           Value: !Ref 'AWS::StackName'
         - Key: Name
           Value: !Ref 'MicroServiceName'
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
-        - Key: environment
-          Value: !Ref 'EnvironmentTag'
-        - Key: live
-          Value: !Ref 'LiveTag'
-        - Key: owner
-          Value: !Ref 'OwnerTag'
-        - Key: project
-          Value: !Ref 'ProjectTag'
       TaskRoleArn: !GetAtt 'EcsTaskRole.Arn'
   EcsTaskRole:
     Type: AWS::IAM::Role
@@ -486,9 +445,12 @@ Resources:
       Description: !Sub 'TaskRole - ${MicroServiceName} in ${EcsClusterName}'
       ManagedPolicyArns: []
       Policies:
-        - PolicyDocument:
+        - PolicyName: !Sub 'AccessToSqsQueuetargetonequeueIn${AWS::StackName}'
+          PolicyDocument:
+            Version: '2012-10-17'
             Statement:
-              - Effect: Allow
+              - Sid: SqsAccess
+                Effect: Allow
                 NotAction:
                   - sqs:TagQueue
                   - sqs:RemovePermission
@@ -499,68 +461,110 @@ Resources:
                   - sqs:CreateQueue
                   - sqs:SetQueueAttributes
                 Resource:
-                  - !GetAtt TargetQueue.QueueName
-            Version: '2012-10-17'
-          PolicyName: !Sub 'AccessToSqsQueuetargetonequeueIn${RootStackName}'
-      Tags:
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
-        - Key: environment
-          Value: !Ref 'EnvironmentTag'
-        - Key: live
-          Value: !Ref 'LiveTag'
-        - Key: owner
-          Value: !Ref 'OwnerTag'
-        - Key: project
-          Value: !Ref 'ProjectTag'
+                  - !GetAtt TargetQueue.Arn
+              - Sid: S3BucketObjectAccess
+                Effect: Allow
+                Action:
+                  - s3:GetObject*
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:s3:::${SourceS3BucketName}/*'
+              - Fn::If:
+                  - NotUseKmsKeyId
+                  - !Ref "AWS::NoValue"
+                  - Sid: KmsKeyAccess
+                    Effect: Allow
+                    Action:
+                      - kms:Decrypt*
+                    Resource:
+                      !Sub 'arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${S3KmsKeyId}'
   ServiceSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub 'SG for ${MicroServiceName} - ${RootStackName}'
+      GroupDescription: !Sub 'SG for ${MicroServiceName} - ${AWS::StackName}'
       Tags:
         - Key: MicroserviceName
           Value: !Ref 'MicroServiceName'
         - Key: Name
-          Value: !Sub '${MicroServiceName}-${RootStackName}'
+          Value: !Sub '${MicroServiceName}-${AWS::StackName}'
         - Key: StackName
           Value: !Ref 'AWS::StackName'
-        - Key: costcentre
-          Value: !Ref 'CostcentreTag'
-        - Key: environment
-          Value: !Ref 'EnvironmentTag'
-        - Key: live
-          Value: !Ref 'LiveTag'
-        - Key: owner
-          Value: !Ref 'OwnerTag'
-        - Key: project
-          Value: !Ref 'ProjectTag'
       VpcId: !Ref 'VpcId'
 
-  S3EventRule:
-    Type: AWS::Events::Rule
+  SqsJobsToProcess:
+    Type: AWS::CloudWatch::Alarm
     Properties:
-      Description: !Sub 'S3 Events from ${SourceS3BucketName}'
-      EventPattern: {
-        "source": [
-          "aws.s3"
-        ],
-        "detail-type": [
-          ""
-        ],
-        "detail": {
-          "eventSource": [
-            "s3.amazonaws.com"
-          ],
-          "eventName": [
-            "PutObject"
-          ],
-          "requestParameters": {
-            "bucketName": [
-              !Ref SourceS3BucketName
-            ]
-          }
-        }
-      }
-      State: ENABLED
-      Targets:
-        - Arn: !GetAtt TargetQueue.Arn
+      ActionsEnabled: True
+      AlarmActions:
+        - !Ref EcsServiceOutScaling
+      AlarmDescription: !Sub "Jobs pending for ${TargetName}"
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      DatapointsToAlarm: 1
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt TargetQueue.QueueName
+      EvaluationPeriods: 1
+      InsufficientDataActions: !Ref "AWS::NoValue"
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      OKActions: !Ref "AWS::NoValue"
+      Period: 60
+      Statistic: Sum
+      Threshold: 1.0
+
+  SqsNoJobsToProcess:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ActionsEnabled: True
+      AlarmActions:
+        - !Ref EcsServiceInScaling
+      AlarmDescription: !Sub "No jobs pending for ${TargetName}"
+      ComparisonOperator: LessThanThreshold
+      DatapointsToAlarm: 1
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt TargetQueue.QueueName
+      EvaluationPeriods: 1
+      InsufficientDataActions: !Ref "AWS::NoValue"
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      OKActions: !Ref "AWS::NoValue"
+      Period: 120
+      Statistic: Sum
+      Threshold: 1.0
+
+  EcsScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 1
+      MinCapacity: 0
+      ResourceId: !Sub 'service/${EcsClusterName}/${EcsServiceDefinition.Name}'
+      RoleARN: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  EcsServiceOutScaling:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub 'sftpclient-${TargetName}-provision-${AWS::StackName}'
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref EcsScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ExactCapacity
+        Cooldown: 300
+        StepAdjustments:
+          - ScalingAdjustment: 1
+            MetricIntervalLowerBound: 0
+
+  EcsServiceInScaling:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub 'sftpclient-${TargetName}-decomission-${AWS::StackName}'
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref EcsScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        Cooldown: 60
+        StepAdjustments:
+          - ScalingAdjustment: -1
+            MetricIntervalUpperBound: 0
+
