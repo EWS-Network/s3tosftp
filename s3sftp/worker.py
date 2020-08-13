@@ -11,6 +11,11 @@ from s3sftp import LOG, keyisset
 from s3sftp.transfer import FileHandler
 
 FOREVER = 42
+""" Considering Speed is 5MB/s """
+SPEED = 1024 * 1024 * 5
+DEFAULT_HIDE_TIMEOUT = 60
+MIN_FILE_SIZE = 10 * 1024 * 1024
+
 
 
 def validate_attributes(message):
@@ -74,6 +79,28 @@ def listen_for_jobs(queue_name, sftp_info, session=None, client=None):
             if not file_info:
                 continue
             LOG.info(f"Processing file {file_info['object']}")
+            if "size" in file_info and file_info["size"] >= MIN_FILE_SIZE:
+                try:
+                    wait_time = int(file_info["size"]) / SPEED
+                    LOG.info(
+                        f"Message is {int(file_info['size'])}, therefore waiting {wait_time} before it appearing again"
+                    )
+                    if isinstance(wait_time, float):
+                        wait_time = int(wait_time)
+                    client.change_message_visibility(
+                        QueueUrl=queue_url,
+                        ReceiptHandle=message["ReceiptHandle"],
+                        VisibilityTimeout=wait_time
+                        if wait_time > DEFAULT_HIDE_TIMEOUT
+                        else DEFAULT_HIDE_TIMEOUT,
+                    )
+                except ClientError as error:
+                    try:
+                        LOG.warning(
+                            f"Failed to Change message visibility, because {error.response['Message']}"
+                        )
+                    except KeyError:
+                        LOG.warning(f"Failed to Change message visibility")
             try:
                 file = FileHandler(
                     sftp_info,
@@ -89,4 +116,3 @@ def listen_for_jobs(queue_name, sftp_info, session=None, client=None):
                 )
             except Exception as error:
                 LOG.error(error)
-                pass
