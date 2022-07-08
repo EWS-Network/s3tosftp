@@ -18,11 +18,12 @@ from boto3.session import Session
 from compose_x_common.aws.secrets_manager import SECRET_ARN_RE
 from jsonschema import validate
 
+from .logger import LOG
+
 SFTP_DETAILS_ENV_NAME = "SFTP_TARGET"
 PRIVATE_KEY_SECRET_ARN = "PRIVATE_KEY_SECRET_ARN"
 PRIVATE_KEY_PASSPHRASE_SECRET_ARN = "PRIVATE_KEY_PASSPHRASE_SECRET_ARN"
 
-from .logger import LOG
 
 SFTP_HOST = "host"
 SFTP_PORT = "port"
