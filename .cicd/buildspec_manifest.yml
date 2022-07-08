@@ -75,7 +75,7 @@ phases:
       - |
           if ! [ ${TAG_RELEASE} -eq 0 ]; then
             echo Publishing latest manifest ;
-            docker manifest create ${REPO_URI}:latest --amend ${REPO_URI}-amd64 --amend ${REPO_URI}-arm64v8 ;
+            docker manifest create ${REPO_URI}:latest --amend ${REPO_URI}:${IMAGE_TAG}-amd64 --amend ${REPO_URI}:${IMAGE_TAG}-arm64v8 ;
             docker manifest push ${REPO_URI}:latest
           fi
 

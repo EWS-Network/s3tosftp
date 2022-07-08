@@ -13,7 +13,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${REGISTRY_URI:-public.ecr.aws/compose-x/}s3-to-sftp:${IMAGE_TAG:-dev}
+    image: ${REGISTRY_URI:-public.ecr.aws/ews-network/}s3-to-sftp:${IMAGE_TAG:-latest}
     volumes:
       - shared:/shared
     deploy:
