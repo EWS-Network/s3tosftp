@@ -1,0 +1,12 @@
+---
+# Docker compose
+version: "3.8"
+services:
+  sftpserver:
+    volumes:
+      - /tmp/sftp:/tmp
+      - ./id_ed25519.pub:/home/foo/.ssh/keys/id_ed25519.pub:ro
+    image: atmoz/sftp
+    ports:
+      - 2200:22/tcp
+    command: foo:pass:::upload

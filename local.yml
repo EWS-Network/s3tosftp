@@ -1,0 +1,53 @@
+---
+# Docker compose
+version: '3.8'
+#networks:
+#  credentials_network:
+#    driver: bridge
+#    ipam:
+#      config:
+#        - subnet: "169.254.170.0/24"
+#          gateway: 169.254.170.1
+services:
+  ecs-local-endpoints:
+    image: amazon/amazon-ecs-local-container-endpoints:latest
+    volumes:
+      - /var/run:/var/run
+      - $HOME/.aws/:/home/.aws/
+    environment:
+      ECS_LOCAL_METADATA_PORT: "51679"
+      HOME: "/home"
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-west-1}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+    ports:
+      - 51679:51679
+    container_name: ecs-local-endpoints
+
+#    networks:
+#      credentials_network:
+#        ipv4_address: 169.254.170.2
+  sftpserver:
+    volumes:
+      - /tmp/sftp:/tmp
+      - ./id_ed25519.pub:/home/foo/.ssh/keys/id_ed25519.pub:ro
+    image: atmoz/sftp
+    ports:
+      - 2200:22/tcp
+    command: foo:pass:::upload
+  s3-to-sftp:
+    environment:
+      QUEUE_NAME: "testabcd"
+      SFTP_TARGET: '{"host": "sftpserver", "port": 22, "username": "foo", "password": "pass", "path": "upload", "private_key": "/tmp/id_ed25519"}'
+      AWS_CONTAINER_CREDENTIALS_RELATIVE_URI: "/creds"
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-west-1}
+      LOGLEVEL: INFO
+    depends_on:
+      - sftpserver
+      - ecs-local-endpoints
+    links:
+      - sftpserver
+    volumes:
+      - ./id_ed25519:/tmp/id_ed25519:ro
+#    networks:
+#      credentials_network:
+#        ipv4_address: 169.254.170.3

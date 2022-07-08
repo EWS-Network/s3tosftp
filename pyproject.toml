@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "s3_to_sftp"
+version = "0.1.0"
+description = ""
+authors = ["John Preston <john@ews-network.net>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+compose-x-common = "^1.0.3"
+pysftp = "^0.2.9"
+boto3 = "^1.24.22"
+jsonschema = "^4.6.1"
+aws-embedded-metrics = "^1.0.8"
+
+[tool.poetry.dev-dependencies]
+black = "^22.6.0"
+isort = "^5.10.1"
+pytest = "^7.1.2"
+pre-commit = "^2.19.0"
+mypy-boto3-sqs = "^1.24.0"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+known_first_party = "kelvin"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

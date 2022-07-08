@@ -1,0 +1,20 @@
+version: "3.8"
+secrets:
+  SFTP_CLIENT:
+    x-secrets:
+      Name: ${SFTP_CLIENT_SECRET_NAME:-/sftp/client}
+
+volumes:
+  shared:
+
+services:
+  s3-to-sftp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${REGISTRY_URI:-public.ecr.aws/compose-x/}s3-to-sftp:${IMAGE_TAG:-dev}
+    volumes:
+      - shared:/shared
+    deploy:
+      labels:
+        ecs.task.family: s3-to-sftp

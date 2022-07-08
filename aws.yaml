@@ -1,0 +1,47 @@
+version: "3.8"
+
+secrets:
+  PRIVATE_KEY:
+    x-secrets:
+      Name: /sftp/test-secret-key
+      VarName: PRIVATE_KEY_SECRET_ARN
+
+
+services:
+  s3-to-sftp:
+    secrets:
+      - PRIVATE_KEY
+    environment:
+      QUEUE_NAME: x-sqs::JobsQueue::QueueName
+
+x-sqs:
+  JobsQueue:
+    Properties: {}
+    Services:
+      s3-to-sftp:
+        Access: RWMessages
+
+x-s3:
+  SourceBucket:
+    Properties:
+      AccessControl: BucketOwnerFullControl
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: "aws:kms"
+              KMSMasterKeyID: "aws/s3"
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Queue: x-sqs::JobsQueue
+            Event: s3:ObjectCreated:*
+
+    Services:
+      s3-to-sftp:
+        Access:
+          bucket: RO
+          objects: RO
