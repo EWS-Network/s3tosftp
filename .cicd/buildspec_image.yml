@@ -1,0 +1,40 @@
+---
+# Buildspec for building docker image.
+version: 0.2
+env:
+  shell: /bin/bash
+  variables:
+    USE_EPOCH: 0
+    PUBLIC_REGISTRY: public.ecr.aws/ews-network
+    REPOSITORY_NAME: s3-to-sftp
+
+phases:
+  install:
+    commands:
+      - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PUBLIC_REGISTRY}
+      - if ! [ -z ${CODEBUILD_RESOLVED_SOURCE_VERSION+x} ]; then COMMIT_HASH=${CODEBUILD_RESOLVED_SOURCE_VERSION::7}; fi
+      - |
+          if [ -z ${ARCH} ]; then export CPU_ARCH=`uname -m |  tr '[:upper:]' '[:lower:]'`;
+            echo CPU ARCH is ${CPU_ARCH}
+            if ! [ ${CPU_ARCH} == "x86_64" ] ; then ARCH="arm64v8"; else ARCH="amd64"; fi
+          fi
+      - EPOCH=`date +'%Y%m%d'`
+      - IMAGE_TAG=${COMMIT_HASH:=$EPOCH}
+      - if [ $USE_EPOCH -eq 1 ]; then IMAGE_TAG=$EPOCH; fi
+      - |
+          if ! [ -z "${CODEBUILD_WEBHOOK_TRIGGER+x}" ]; then
+            echo TRIGGER is $CODEBUILD_WEBHOOK_TRIGGER
+            PRE=`echo $CODEBUILD_WEBHOOK_TRIGGER|cut -d '/' -f 1`;
+            echo PRE is $PRE
+            echo IMAGE_TAG is $IMAGE_TAG
+            if [ "${PRE}" == "tag" ]; then IMAGE_TAG=`echo $CODEBUILD_WEBHOOK_TRIGGER|cut -d '/' -f 2`; TAG_RELEASE=1 ; fi
+          fi
+      - echo IMAGE_TAG ends up being $IMAGE_TAG
+
+  build:
+    commands:
+      - docker build . -t ${PUBLIC_REGISTRY}/${REPOSITORY_NAME}:${IMAGE_TAG}-${ARCH}
+      - docker push ${PUBLIC_REGISTRY}/${REPOSITORY_NAME}:${IMAGE_TAG}-${ARCH}
+
+    finally:
+      - rm -rfv ~/.docker

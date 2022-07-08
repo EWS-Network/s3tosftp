@@ -1,8 +1,9 @@
 version: "3.8"
 secrets:
-  SFTP_CLIENT:
+  SFTP_TARGET:
     x-secrets:
       Name: ${SFTP_CLIENT_SECRET_NAME:-/sftp/client}
+      VarName: SFTP_TARGET
 
 volumes:
   shared:
@@ -18,3 +19,5 @@ services:
     deploy:
       labels:
         ecs.task.family: s3-to-sftp
+    secrets:
+      - SFTP_SECRET
