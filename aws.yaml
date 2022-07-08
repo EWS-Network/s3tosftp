@@ -13,13 +13,30 @@ services:
       - PRIVATE_KEY
     environment:
       QUEUE_NAME: x-sqs::JobsQueue::QueueName
+    deploy:
+      replicas: 3
+    x-monitoring:
+      CWAgentCollectEmf: True
+    x-scaling:
+      Range: 0-5
 
 x-sqs:
   JobsQueue:
-    Properties: {}
+    Properties:
+      ReceiveMessageWaitTimeSeconds: 10
     Services:
       s3-to-sftp:
         Access: RWMessages
+        Scaling:
+          Steps:
+            - LowerBound: 1
+              UpperBound: 10
+              Count: 1
+            - LowerBound: 10
+              UpperBound: 20
+              Count: 3
+            - LowerBound: 20
+              Count: 5
 
 x-s3:
   SourceBucket:
@@ -34,7 +51,7 @@ x-s3:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: "aws:kms"
-              KMSMasterKeyID: "aws/s3"
+              KMSMasterKeyID: "alias/aws/s3"
       NotificationConfiguration:
         QueueConfigurations:
           - Queue: x-sqs::JobsQueue
