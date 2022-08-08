@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-exec $@
+exec python -u entrypoint.py "$@"

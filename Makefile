@@ -54,12 +54,6 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: ## check style with flake8
-	flake8 s3_to_sftp --exclude .git,_invoke*
-
-lint-tests:
-	flake8 tests --exclude .git,_invoke*
-
 test: ## run tests quickly with the default Python
 	behave tests/features
 	pytest tests/pytests -vv -s -x
@@ -103,6 +97,6 @@ install: conform ## install the package to the active Python's site-packages
 	pip install . --use-pep517 #--use-feature=in-tree-build
 
 conform	: ## Conform to a standard of coding syntax
-	isort --profile black s3_to_sftp
-	black s3_to_sftp tests
+	isort --profile black s3_to_sftp entrypoint.py
+	black s3_to_sftp tests entrypoint.py
 	find s3_to_sftp -name "*.json" -type f  -exec sed -i '1s/^\xEF\xBB\xBF//' {} +

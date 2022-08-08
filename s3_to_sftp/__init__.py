@@ -1,4 +1,5 @@
-#  -*- coding: utf-8 -*-
+# Copyright (C) 2020-2022 John Mille <john@ews-network.net>
+
 """
 Module to get jobs from SQS and transfer files from S3 to a SFTP target
 """
@@ -66,14 +67,9 @@ def get_sftp_details_from_env(sftp_details: dict) -> None:
                 print(f"Override value for {key} from environment variable")
 
 
-def get_sftp_info(temp_directory: TemporaryDirectory):
-    """
-    Function retrieving the SFTP target information from environment variable.
-
-    :return: SFTP connection details
-    :rtype: dict
-    """
-    sftp_connection_details: dict = {}
+def get_sftp_ssh_key_details(
+    sftp_connection_details: dict, temp_directory: TemporaryDirectory
+) -> None:
     client_key = environ.get(PRIVATE_KEY_SECRET_ARN, None)
     if client_key and SECRET_ARN_RE.match(client_key):
         private_key = get_sftp_details_from_secrets_manager(client_key)
@@ -89,20 +85,34 @@ def get_sftp_info(temp_directory: TemporaryDirectory):
         ] = get_sftp_details_from_secrets_manager(client_key_passphrase)["SecretString"]
         LOG.info("Private key passphrase pulled from Secrets Manager")
 
+
+def get_sftp_info(temp_directory: TemporaryDirectory) -> dict:
+    """
+    Function retrieving the SFTP target information from environment variable.
+
+    :return: SFTP connection details
+    :rtype: dict
+    """
+    sftp_connection_details: dict = {}
+    get_sftp_ssh_key_details(sftp_connection_details, temp_directory)
     sftp_info = environ.get(SFTP_DETAILS_ENV_NAME, None)
     if sftp_info and isinstance(sftp_info, str) and SECRET_ARN_RE.match(sftp_info):
         try:
             sftp_details = loads(
                 get_sftp_details_from_secrets_manager(sftp_info)["SecretString"]
             )
+            LOG.info("Loaded sftp details from Secrets Manager")
         except JSONDecodeError:
             print("sftp_details in secrets manager are not in a valid JSON Format")
             raise
     elif sftp_info and isinstance(sftp_info, str):
         try:
             sftp_details = loads(sftp_info)
+            LOG.info("Loaded sftp details from environment variable")
         except JSONDecodeError:
-            print("Secrets info is not a valid JSON")
+            print(
+                "Secrets info from environment variable are not in a valid JSON Format"
+            )
             raise
     else:
         raise ValueError(f"Unable to get secrets details from {SFTP_DETAILS_ENV_NAME}")
@@ -120,20 +130,5 @@ def get_sftp_info(temp_directory: TemporaryDirectory):
         f"{sftp_connection_details['host']}:"
         f"{sftp_connection_details['port']}"
     )
+    LOG.debug(sftp_connection_details.keys())
     return sftp_connection_details
-
-
-def get_queue_url():
-    """
-    Function to get the queue name from environ.
-
-    :return: queue name
-    :rtype: str
-    """
-
-    queue_url = environ.get("QUEUE_URL", None)
-    if queue_url:
-        return environ.get("QUEUE_URL")
-    queue_name = environ.get("QUEUE_NAME", None)
-    if queue_name and isinstance(queue_name, str):
-        return Session().client("sqs").get_queue_url(QueueName=queue_name)["QueueUrl"]

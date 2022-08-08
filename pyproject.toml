@@ -7,10 +7,10 @@ authors = ["John Preston <john@ews-network.net>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 compose-x-common = "^1.0.3"
-pysftp = "^0.2.9"
 boto3 = "^1.24.22"
 jsonschema = "^4.6.1"
 aws-embedded-metrics = "^1.0.8"
+paramiko = "^2.11.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.6.0"
@@ -18,6 +18,7 @@ isort = "^5.10.1"
 pytest = "^7.1.2"
 pre-commit = "^2.19.0"
 mypy-boto3-sqs = "^1.24.0"
+boto3-stubs = {extras = ["s3"], version = "^1.24.46"}
 
 [tool.black]
 line-length = 88

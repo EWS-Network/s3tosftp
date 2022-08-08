@@ -1,60 +1,46 @@
-#  -*- coding: utf-8 -*-
+# Copyright (C) 2020-2022 John Mille <john@ews-network.net>
+
 """
-Module to get jobs from SQS and transfer files from S3 to a SFTP target
+Logging management.
 """
 
 from __future__ import annotations
 
 import logging as logthings
 import sys
-from os import environ
-
-from compose_x_common.compose_x_common import keyisset
 
 
 def setup_logging():
-    """Function to setup logging for ECS ComposeX.
-    In case this is used in a Lambda function, removes the AWS Lambda default log handler
-
-    :returns: the_logger
-    :rtype: Logger
-    """
-    level = environ.get("LOGLEVEL")
-    default_level = True
-    formats = {
-        "INFO": logthings.Formatter(
-            "%(asctime)s [%(levelname)8s] %(message)s",
-            "%Y-%m-%d %H:%M:%S",
-        ),
-        "DEBUG": logthings.Formatter(
-            "%(asctime)s [%(levelname)8s] %(filename)s.%(lineno)d , %(funcName)s, %(message)s",
-            "%Y-%m-%d %H:%M:%S",
-        ),
-    }
-
-    if level is not None and isinstance(level, str):
-        logthings.basicConfig(level=level.upper())
-        default_level = False
-    else:
-        logthings.basicConfig(level="INFO")
-
+    """ """
+    default_format = logthings.Formatter(
+        "%(asctime)s [%(levelname)8s] %(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
+    debug_format = logthings.Formatter(
+        "%(asctime)s [%(levelname)8s] %(filename)s.%(lineno)d , %(funcName)s, %(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
     root_logger = logthings.getLogger()
     for h in root_logger.handlers:
         root_logger.removeHandler(h)
-    the_logger = logthings.getLogger("EcsComposeX")
 
-    if not the_logger.handlers:
-        if default_level:
-            formatter = formats["INFO"]
-        elif keyisset(level.upper(), formats):
-            formatter = formats[level.upper()]
-        else:
-            formatter = formats["DEBUG"]
-        handler = logthings.StreamHandler(sys.stdout)
-        handler.setFormatter(formatter)
-        the_logger.addHandler(handler)
+    app_logger = logthings.getLogger("s3_to_sftp")
 
-    return the_logger
+    for h in app_logger.handlers:
+        root_logger.removeHandler(h)
+
+    stdout_handler = logthings.StreamHandler(sys.stdout)
+    stdout_handler.setFormatter(default_format)
+    stdout_handler.setLevel(logthings.INFO)
+    app_logger.addHandler(stdout_handler)
+
+    stderr_handler = logthings.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(debug_format)
+    stderr_handler.setLevel(logthings.WARNING)
+
+    app_logger.addHandler(stderr_handler)
+    app_logger.setLevel(logthings.INFO)
+    return app_logger
 
 
 LOG = setup_logging()

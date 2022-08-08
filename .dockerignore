@@ -125,3 +125,6 @@ ENV/
 *portal.sso.GetRoleCredentials*.json
 tests/
 use-cases/
+
+id_ed25519*
+id_rsa*
