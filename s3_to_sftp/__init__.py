@@ -19,7 +19,12 @@ from boto3.session import Session
 from compose_x_common.aws.secrets_manager import SECRET_ARN_RE
 from jsonschema import validate
 
-from .logger import LOG
+from s3_to_sftp.logger import LOG
+
+__author__ = """John Preston"""
+__email__ = "john@compose-x.io"
+__version__ = "0.0.1"
+
 
 SFTP_DETAILS_ENV_NAME = "SFTP_TARGET"
 PRIVATE_KEY_SECRET_ARN = "PRIVATE_KEY_SECRET_ARN"
@@ -119,7 +124,7 @@ def get_sftp_info(temp_directory: TemporaryDirectory) -> dict:
     sftp_connection_details.update(sftp_details)
     get_sftp_details_from_env(sftp_connection_details)
     with open(
-        f"{path.abspath(path.dirname(__file__))}/secret-format.json", "r"
+        f"{path.abspath(path.dirname(__file__))}/secret-format.json"
     ) as secret_format_fd:
         secret_schema = json.loads(secret_format_fd.read())
     validate(sftp_connection_details, secret_schema)
