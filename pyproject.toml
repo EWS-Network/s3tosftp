@@ -1,24 +1,77 @@
 [tool.poetry]
-name = "s3_to_sftp"
-version = "0.1.0"
-description = ""
+name = "s3-to-sftp"
+version = "0.0.1"
+description = "S3 to SFTP application / watcher. Feeds from S3 to SQS notifications."
 authors = ["John Preston <john@ews-network.net>"]
+readme = "README.rst"
+keywords = ["compose-x", "aws", "sftp", "docker", "compose"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: Information Technology",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+]
+
+include = [
+  "LICENSE",
+  "s3_to_sftp/**/*.json",
+]
+
+exclude = ["*.pyc", "*~", "*pycache*"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
 compose-x-common = "^1.0.3"
 boto3 = "^1.24.22"
-jsonschema = "^4.6.1"
-aws-embedded-metrics = "^1.0.8"
+jsonschema = "^4"
+aws-embedded-metrics = "^2.0"
 paramiko = "^2.11.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.6.0"
 isort = "^5.10.1"
 pytest = "^7.1.2"
-pre-commit = "^2.19.0"
-mypy-boto3-sqs = "^1.24.0"
-boto3-stubs = {extras = ["s3"], version = "^1.24.46"}
+pre-commit = "^2"
+mypy-boto3-sqs = "^1.24"
+boto3-stubs = { extras = ["s3", "sqs"], version = "^1.24.46" }
+tbump = "^6.9.0"
+twine = "^4.0.1"
+pyupgrade = "^2.37.3"
+
+[tool.tbump]
+github_url = "https://github.com/EWS-Network/s3tosftp"
+
+[tool.tbump.version]
+current = "0.0.1"
+
+regex = '''
+  (?P<major>\d+)
+  \.
+  (?P<minor>\d+)
+  \.
+  (?P<patch>\d+)
+  (?:(?P<rc>[\S]+))?
+  '''
+
+[tool.tbump.git]
+message_template = "Bump to {new_version}"
+tag_template = "v{new_version}"
+
+[[tool.tbump.file]]
+src = "pyproject.toml"
+
+[[tool.tbump.file]]
+src = "s3_to_sftp/__init__.py"
+
+[[tool.tbump.before_commit]]
+name = "Files format"
+cmd = "make conform"
+
 
 [tool.black]
 line-length = 88
