@@ -85,5 +85,5 @@ use_parentheses = true
 known_first_party = "kelvin"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.1"]
 build-backend = "poetry.core.masonry.api"

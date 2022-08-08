@@ -40,7 +40,7 @@ Parameters:
 
   ImagesBuildSpec:
     Type: String
-    Default: .cicd/buildspec_manifest.yml
+    Default: .cicd/buildspec.yml
 
 Mappings:
   RepoUrlPrefixes:

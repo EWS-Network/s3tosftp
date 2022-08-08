@@ -5,7 +5,8 @@ Module to handle the queue jobs and execute the SFTP transfer.
 
 """
 import signal
-from time import sleep
+from datetime import datetime as dt
+from datetime import timedelta as td
 
 from aws_embedded_metrics import metric_scope
 from boto3.session import Session
@@ -70,10 +71,15 @@ class Worker:
         with sftp_connection as sftp_fd:
             LOG.info("Connected to SFTP")
             LOG.info(f"Waiting on messages from {self.queue_url}")
+            _loop_start = dt.now()
+            _output_every = td(seconds=60)
             while self.keep_running:
-                try:
+                if (_loop_start + _output_every) < dt.now():
                     LOG.info(f"{self.queue_name} - Waiting for files_transfers")
+                    _loop_start = dt.now()
+                try:
                     queue_messages = self.queue.receive_messages(
+                        WaitTimeSeconds=1,
                         MaxNumberOfMessages=min(
                             [
                                 int(
@@ -95,7 +101,6 @@ class Worker:
                 except Exception as error:
                     LOG.error("Failed to retrieve jobs from queue")
                     LOG.exception(error)
-                sleep(1)
 
     @metric_scope
     def transfer_files_to_sftp(
