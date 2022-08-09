@@ -12,7 +12,7 @@ from aws_embedded_metrics import metric_scope
 from boto3.session import Session
 from compose_x_common.aws import get_session
 from compose_x_common.aws.sqs import SQS_QUEUE_ARN_RE
-from compose_x_common.compose_x_common import set_else_none
+from compose_x_common.compose_x_common import keyisset, set_else_none
 
 from s3_to_sftp.transfer_handler import get_sftp_connection
 
@@ -60,6 +60,10 @@ class Worker:
     def sftp_port(self) -> int:
         return self.sftp_info["port"]
 
+    @property
+    def connection_string(self) -> str:
+        return f"{self.sftp_username}@{self.sftp_host}:@{self.sftp_port}"
+
     @staticmethod
     def get_queue_url_from_name(queue_name: str, session: Session = None) -> str:
         session = get_session(session)
@@ -67,9 +71,18 @@ class Worker:
 
     def run(self, **kwargs) -> None:
         global sftp_connection
-        sftp_connection = get_sftp_connection(self.sftp_info)
+        sftp_connection = get_sftp_connection(
+            self.sftp_info,
+            attempt_interactive_auth_with_password=keyisset(
+                "attempt_interactive_auth", kwargs
+            ),
+        )
+        if not sftp_connection or not hasattr(sftp_connection, "__enter__"):
+            raise ConnectionError(
+                f"Unable to establish connection to SFTP server", self.connection_string
+            )
         with sftp_connection as sftp_fd:
-            LOG.info("Connected to SFTP")
+            LOG.info(f"{self.connection_string} - Connection established.")
             LOG.info(f"Waiting on messages from {self.queue_url}")
             _loop_start = dt.now()
             _output_every = td(seconds=60)

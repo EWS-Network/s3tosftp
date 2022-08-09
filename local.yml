@@ -25,6 +25,7 @@ services:
       - 2200:22/tcp
     command: foo:pass:::upload
   s3-to-sftp:
+#    image: public.ecr.aws/ews-network/s3-to-sftp:latest
     build:
       context: .
     environment:

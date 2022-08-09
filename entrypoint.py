@@ -14,6 +14,7 @@ MB: int = 1024**2
 TRANSFER_RATE: int = int(environ.get("TRANSFER_RATE", 1))
 ERROR_MARGIN: int = int(environ.get("TRANSFER_MARGIN_PERCENT", 15))
 MAX_MESSAGES_BATCH = int(environ.get("SQS_MAX_MESSAGES", 10))
+ATTEMPT_INTERACTIVE_AUTH: bool = bool(environ.get("ATTEMPT_INTERACTIVE_AUTH", False))
 
 
 def get_queue_url() -> str:
@@ -54,6 +55,13 @@ def s3_to_sftp():
         required=False,
         help="In percent from 1 to 100, how much margin of error for transfer time to add.",
         default=ERROR_MARGIN,
+    )
+    parser.add_argument(
+        "--attempt-interactive-auth",
+        action="store_true",
+        required=False,
+        default=ATTEMPT_INTERACTIVE_AUTH,
+        help="Enables automatic fallback use of the password for interactive auth. Rarely required.",
     )
     args = parser.parse_args()
     if args.debug and LOG.hasHandlers():
