@@ -92,7 +92,9 @@ class Worker:
                     _loop_start = dt.now()
                 try:
                     queue_messages = self.queue.receive_messages(
-                        WaitTimeSeconds=1,
+                        WaitTimeSeconds=int(
+                            set_else_none("poll_intervals", kwargs, alt_value=2)
+                        ),
                         MaxNumberOfMessages=min(
                             [
                                 int(
@@ -103,7 +105,6 @@ class Worker:
                                 10,
                             ]
                         ),
-                        VisibilityTimeout=20,
                     )
                     if queue_messages:
                         files_transfers = [TransferFile(msg) for msg in queue_messages]

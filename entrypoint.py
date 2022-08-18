@@ -15,6 +15,7 @@ TRANSFER_RATE: int = int(environ.get("TRANSFER_RATE", 1))
 ERROR_MARGIN: int = int(environ.get("TRANSFER_MARGIN_PERCENT", 15))
 MAX_MESSAGES_BATCH = int(environ.get("SQS_MAX_MESSAGES", 10))
 ATTEMPT_INTERACTIVE_AUTH: bool = bool(environ.get("ATTEMPT_INTERACTIVE_AUTH", False))
+POLL_INTERVALS = int(environ.get("POLLING_INTERVAL", 10))
 
 
 def get_queue_url() -> str:
@@ -55,6 +56,13 @@ def s3_to_sftp():
         required=False,
         help="In percent from 1 to 100, how much margin of error for transfer time to add.",
         default=ERROR_MARGIN,
+    )
+    parser.add_argument(
+        "--poll-intervals",
+        type=int,
+        default=POLL_INTERVALS,
+        dest="poll_intervals",
+        required=False,
     )
     parser.add_argument(
         "--attempt-interactive-auth",
