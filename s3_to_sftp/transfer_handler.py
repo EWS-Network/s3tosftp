@@ -32,7 +32,7 @@ def recursive_mkdir(sftp, remote_directory):
         return
     try:
         sftp.chdir(remote_directory)
-    except IOError:
+    except OSError:
         dirname, basename = path.split(remote_directory.rstrip("/"))
         recursive_mkdir(sftp, dirname)
         sftp.mkdir(basename)
@@ -40,7 +40,7 @@ def recursive_mkdir(sftp, remote_directory):
         return True
 
 
-class FileHandler(object):
+class FileHandler:
     """
     Class to handle the SFTP file transfer from S3 to target.
     """
@@ -139,7 +139,6 @@ def get_sftp_connection(
     alternative_function=None,
     attempt_interactive_auth_with_password: bool = False,
 ) -> SFTPClient:
-
     try:
         client = SSHClient()
         client.set_missing_host_key_policy(AutoAddPolicy())
