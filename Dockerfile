@@ -11,10 +11,10 @@ RUN poetry build
 FROM $BASE_IMAGE
 WORKDIR /app
 #RUN yum upgrade -y; yum install -y shadow-utils ;\
-#    groupadd -r app -g 1042 && \
-#    useradd -u 1042 -r -g app -M -d /app -s /sbin/nologin -c "App user" app && chown -R app:app /app;\
-#    yum erase shadow-utils -y
-#USER app
+RUN groupadd -r app -g 1042 && \
+    useradd -u 1042 -r -g app -M -d /app -s /sbin/nologin -c "App user" app && chown -R app:app /app
+
+USER app
 COPY --from=builder /temp/dist/*.whl .
 COPY ["LICENSE", "README.rst", "/app/"]
 
