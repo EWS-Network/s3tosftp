@@ -23,7 +23,7 @@ from s3_to_sftp.logger import LOG
 
 __author__ = """John Preston"""
 __email__ = "john@compose-x.io"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 
 SFTP_DETAILS_ENV_NAME = "SFTP_TARGET"
