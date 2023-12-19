@@ -30,7 +30,7 @@ compose-x-common = "^1.4"
 boto3 = ">=1.28,<2.0"
 jsonschema = "4.17"
 aws-embedded-metrics = "^2.0"
-paramiko = "^2.11"
+paramiko = ">=2.11,<4.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.7"
